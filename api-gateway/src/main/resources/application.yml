@@ -8,20 +8,17 @@ spring:
     gateway:
       routes:
         - id: flight-service
-          uri: http://localhost:8081
+          uri: ${FLIGHT_SERVICE_URL:http://localhost:8081}
           predicates:
-            - Path=/api/v1/airports/**
             - Path=/api/v1/flights/**
         - id: crew-service
-          uri: http://localhost:8082
+          uri: ${CREW_SERVICE_URL:http://localhost:8082}
           predicates:
             - Path=/api/v1/crew-members/**
-            - Path=/api/v1/crew-assignments/**
         - id: operations-service
-          uri: http://localhost:8083
+          uri: ${OPERATIONS_SERVICE_URL:http://localhost:8083}
           predicates:
-            - Path=/api/v1/operations/**
-            - Path=/api/v1/audit-records/**
+            - Path=/api/v1/flight-operations/**
 
 management:
   endpoints:
