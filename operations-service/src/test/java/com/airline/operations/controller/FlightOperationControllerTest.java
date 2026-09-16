@@ -5,6 +5,7 @@ import com.airline.operations.dto.CreateFlightOperationRequest;
 import com.airline.operations.dto.FlightOperationResponse;
 import com.airline.operations.dto.UpdateFlightOperationRequest;
 import com.airline.operations.exception.FlightOperationNotFoundException;
+import com.airline.operations.exception.InvalidStatusTransitionException;
 import com.airline.operations.model.OperationStatus;
 import com.airline.operations.service.FlightOperationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -337,6 +338,28 @@ class FlightOperationControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(flightOperationService, times(1)).updateFlightOperation(eq(nonExistentId), any(UpdateFlightOperationRequest.class));
+    }
+
+    @Test
+    void updateFlightOperation_WithInvalidStatusTransition_ShouldReturn400() throws Exception {
+        UpdateFlightOperationRequest request = new UpdateFlightOperationRequest(
+                OperationStatus.CANCELLED,
+                testScheduledAt,
+                Instant.now(),
+                "LAX",
+                "Updated remarks"
+        );
+
+        when(flightOperationService.updateFlightOperation(eq(testId), any(UpdateFlightOperationRequest.class)))
+                .thenThrow(new InvalidStatusTransitionException(OperationStatus.PLANNED, OperationStatus.BOARDING));
+
+        mockMvc.perform(put("/api/v1/flight-operations/{id}", testId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").exists());
+
+        verify(flightOperationService, times(1)).updateFlightOperation(eq(testId), any(UpdateFlightOperationRequest.class));
     }
 
     @Test

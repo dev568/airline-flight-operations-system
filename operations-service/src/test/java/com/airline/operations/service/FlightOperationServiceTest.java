@@ -5,6 +5,7 @@ import com.airline.operations.dto.FlightOperationResponse;
 import com.airline.operations.dto.UpdateFlightOperationRequest;
 import com.airline.operations.entity.FlightOperation;
 import com.airline.operations.exception.FlightOperationNotFoundException;
+import com.airline.operations.exception.InvalidStatusTransitionException;
 import com.airline.operations.model.OperationStatus;
 import com.airline.operations.repository.FlightOperationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -205,7 +206,7 @@ class FlightOperationServiceTest {
     @Test
     void updateFlightOperation_WhenExists_ShouldReturnUpdated() {
         UpdateFlightOperationRequest request = new UpdateFlightOperationRequest(
-                OperationStatus.BOARDING,
+                OperationStatus.CHECK_IN_OPEN,
                 testScheduledAt,
                 Instant.now(),
                 "LAX",
@@ -263,5 +264,110 @@ class FlightOperationServiceTest {
         );
 
         verify(flightOperationRepository, never()).deleteById(nonExistentId);
+    }
+
+    @Test
+    void updateFlightOperation_WithValidStatusTransition_ShouldSucceed() {
+        testFlightOperation.setStatus(OperationStatus.PLANNED);
+        UpdateFlightOperationRequest request = new UpdateFlightOperationRequest(
+                OperationStatus.CHECK_IN_OPEN,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(flightOperationRepository.findById(testId)).thenReturn(java.util.Optional.of(testFlightOperation));
+        when(flightOperationRepository.save(any(FlightOperation.class))).thenReturn(testFlightOperation);
+
+        FlightOperationResponse response = flightOperationService.updateFlightOperation(testId, request);
+
+        assertNotNull(response);
+        assertEquals(OperationStatus.CHECK_IN_OPEN, response.status());
+        verify(flightOperationRepository, times(1)).save(any(FlightOperation.class));
+    }
+
+    @Test
+    void updateFlightOperation_WithInvalidStatusTransition_ShouldThrowException() {
+        testFlightOperation.setStatus(OperationStatus.ARRIVED);
+        UpdateFlightOperationRequest request = new UpdateFlightOperationRequest(
+                OperationStatus.PLANNED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(flightOperationRepository.findById(testId)).thenReturn(java.util.Optional.of(testFlightOperation));
+
+        assertThrows(
+                InvalidStatusTransitionException.class,
+                () -> flightOperationService.updateFlightOperation(testId, request)
+        );
+
+        verify(flightOperationRepository, never()).save(any(FlightOperation.class));
+    }
+
+    @Test
+    void updateFlightOperation_WithTerminalStateTransition_ShouldThrowException() {
+        testFlightOperation.setStatus(OperationStatus.CANCELLED);
+        UpdateFlightOperationRequest request = new UpdateFlightOperationRequest(
+                OperationStatus.PLANNED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(flightOperationRepository.findById(testId)).thenReturn(java.util.Optional.of(testFlightOperation));
+
+        assertThrows(
+                InvalidStatusTransitionException.class,
+                () -> flightOperationService.updateFlightOperation(testId, request)
+        );
+
+        verify(flightOperationRepository, never()).save(any(FlightOperation.class));
+    }
+
+    @Test
+    void updateFlightOperation_WithSameStatus_ShouldSucceed() {
+        testFlightOperation.setStatus(OperationStatus.PLANNED);
+        UpdateFlightOperationRequest request = new UpdateFlightOperationRequest(
+                OperationStatus.PLANNED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(flightOperationRepository.findById(testId)).thenReturn(java.util.Optional.of(testFlightOperation));
+        when(flightOperationRepository.save(any(FlightOperation.class))).thenReturn(testFlightOperation);
+
+        FlightOperationResponse response = flightOperationService.updateFlightOperation(testId, request);
+
+        assertNotNull(response);
+        assertEquals(OperationStatus.PLANNED, response.status());
+        verify(flightOperationRepository, times(1)).save(any(FlightOperation.class));
+    }
+
+    @Test
+    void updateFlightOperation_WithDelayedToOperational_ShouldSucceed() {
+        testFlightOperation.setStatus(OperationStatus.DELAYED);
+        UpdateFlightOperationRequest request = new UpdateFlightOperationRequest(
+                OperationStatus.DEPARTED,
+                null,
+                null,
+                null,
+                null
+        );
+
+        when(flightOperationRepository.findById(testId)).thenReturn(java.util.Optional.of(testFlightOperation));
+        when(flightOperationRepository.save(any(FlightOperation.class))).thenReturn(testFlightOperation);
+
+        FlightOperationResponse response = flightOperationService.updateFlightOperation(testId, request);
+
+        assertNotNull(response);
+        assertEquals(OperationStatus.DEPARTED, response.status());
+        verify(flightOperationRepository, times(1)).save(any(FlightOperation.class));
     }
 }

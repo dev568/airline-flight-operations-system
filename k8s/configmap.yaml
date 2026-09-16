@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airline-config
+  namespace: airline-operations
+data:
+  # Database configuration (example - use external PostgreSQL in production)
+  DB_USERNAME: "airline_user"
+
+  # Service-specific database URLs
+  FLIGHT_DB_URL: "jdbc:postgresql://airline-postgres:5432/flight_db"
+  CREW_DB_URL: "jdbc:postgresql://airline-postgres:5432/crew_db"
+  OPERATIONS_DB_URL: "jdbc:postgresql://airline-postgres:5432/operations_db"
+
+  # Service URLs for gateway routing
+  FLIGHT_SERVICE_URL: "http://flight-service:8081"
+  CREW_SERVICE_URL: "http://crew-service:8082"
+  OPERATIONS_SERVICE_URL: "http://operations-service:8083"

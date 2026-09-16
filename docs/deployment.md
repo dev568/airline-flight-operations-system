@@ -26,65 +26,61 @@ After installation:
 1. Clone repository
 2. Start PostgreSQL:
 ```bash
-docker-compose up -d postgres
+export DB_PASSWORD=your_password
+docker-compose up -d
 ```
 
 3. Build project:
 ```bash
-./mvnw clean install
+mvn clean package
 ```
 
 4. Run services:
 ```bash
 # Terminal 1 - Flight Service
-./mvnw spring-boot:run -pl flight-service
+mvn spring-boot:run -pl flight-service
 
 # Terminal 2 - Crew Service
-./mvnw spring-boot:run -pl crew-service
+mvn spring-boot:run -pl crew-service
 
 # Terminal 3 - Operations Service
-./mvnw spring-boot:run -pl operations-service
+mvn spring-boot:run -pl operations-service
 
 # Terminal 4 - API Gateway
-./mvnw spring-boot:run -pl api-gateway
+mvn spring-boot:run -pl api-gateway
 ```
 
 ### Environment Configuration
 
-Create `application-local.yml` for local overrides:
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/flight_db
-    username: airline_user
-    password: airline_password
-```
+All services support environment variables for database configuration. No local application.yml overrides are required.
 
 ## Docker Deployment
 
 **Current Status:**
-- Docker/PostgreSQL not available in local environment
-- Docker Compose has not been executed because Docker is unavailable
-- Current Docker Compose defines PostgreSQL only
-- Application containers are not currently defined in docker-compose.yml
-- Dockerfiles, if present, have not been container-tested locally
+- ✅ Docker available (version 29.8.0)
+- ✅ Docker images built successfully for all services
+- ✅ Docker Compose PostgreSQL configuration validated
+- ❌ Application containers not currently defined in docker-compose.yml
+- ✅ Dockerfiles validated with root-context builds
 
-### Build Images (Planned)
+### Build Images
 
 ```bash
-# Build all images
-docker-compose build
-
-# Build specific service
-docker build -t airline/flight-service:latest flight-service/
+# Build all images from repository root
+docker build -t airline-api-gateway -f api-gateway/Dockerfile .
+docker build -t airline-flight-service -f flight-service/Dockerfile .
+docker build -t airline-crew-service -f crew-service/Dockerfile .
+docker build -t airline-operations-service -f operations-service/Dockerfile .
 ```
 
-### Run with Docker Compose (Planned)
+### Run with Docker Compose
 
 ```bash
+# Set required environment variable
+export DB_PASSWORD=your_password
+
 # Start PostgreSQL only
-docker-compose up -d postgres
+docker-compose up -d
 
 # View logs
 docker-compose logs -f
@@ -98,27 +94,35 @@ docker-compose down -v
 
 ### Dockerfile Structure
 
-Multi-stage build for small images:
+Multi-stage build for small images with repository root context:
 
 ```dockerfile
 # Build stage
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
+COPY api-gateway/pom.xml ./api-gateway/
+COPY flight-service/pom.xml ./flight-service/
+COPY crew-service/pom.xml ./crew-service/
+COPY operations-service/pom.xml ./operations-service/
+COPY api-gateway/src ./api-gateway/src
+COPY flight-service/src ./flight-service/src
+COPY crew-service/src ./crew-service/src
+COPY operations-service/src ./operations-service/src
+RUN mvn clean package -DskipTests -pl api-gateway
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8081
+RUN apk add --no-cache curl
+COPY --from=build /app/api-gateway/target/api-gateway-1.0.0-SNAPSHOT.jar app.jar
+EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
-**Note:** Dockerfiles exist for all services but have not been container-tested locally due to Docker unavailability. The healthcheck command uses wget, which may not be available in Alpine images and may need adjustment.
+**Note:** Dockerfiles use repository root as build context, copy all module POMs and source directories, build specific modules with Maven `-pl` flag, use exact JAR filenames (no wildcards), and install curl for healthchecks.
 
 ## Kubernetes Deployment
 
@@ -131,58 +135,82 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ### Current Status
 
-**Note:** Kubernetes deployment manifests are currently pending. The k8s/ directory does not exist yet. This section documents the planned approach.
+**Note:** Kubernetes deployment manifests are available in the `k8s/` directory but have not been tested against a real Kubernetes cluster.
 
-**Docker Compose Limitations:**
-- Docker/PostgreSQL not available in local environment
-- Docker Compose has not been executed because Docker is unavailable
-- Current Docker Compose defines PostgreSQL only
-- Application containers are not currently defined in docker-compose.yml
-- Dockerfiles, if present, have not been container-tested locally
+**Available Manifests:**
+- namespace.yaml - Kubernetes namespace
+- configmap.yaml - Configuration for database URLs and service routing
+- secret.yaml - Secret for database password (placeholder)
+- api-gateway-deployment.yaml + service.yaml
+- flight-service-deployment.yaml + service.yaml
+- crew-service-deployment.yaml + service.yaml
+- operations-service-deployment.yaml + service.yaml
 
-### Build and Push Images (Planned)
+### Build and Push Images
 
 ```bash
 # Build images
-docker-compose build
+docker build -t airline-api-gateway -f api-gateway/Dockerfile .
+docker build -t airline-flight-service -f flight-service/Dockerfile .
+docker build -t airline-crew-service -f crew-service/Dockerfile .
+docker build -t airline-operations-service -f operations-service/Dockerfile .
 
 # Tag for registry
-docker tag airline/flight-service:latest registry.example.com/airline/flight-service:1.0.0
+docker tag airline-api-gateway:latest registry.example.com/airline/api-gateway:1.0.0
+docker tag airline-flight-service:latest registry.example.com/airline/flight-service:1.0.0
+docker tag airline-crew-service:latest registry.example.com/airline/crew-service:1.0.0
+docker tag airline-operations-service:latest registry.example.com/airline/operations-service:1.0.0
 
 # Push to registry
+docker push registry.example.com/airline/api-gateway:1.0.0
 docker push registry.example.com/airline/flight-service:1.0.0
+docker push registry.example.com/airline/crew-service:1.0.0
+docker push registry.example.com/airline/operations-service:1.0.0
 ```
 
-**Note:** The above commands require Docker to be available. Dockerfiles exist for all services but have not been tested due to Docker unavailability in the local environment.
-
-### Deploy to Kubernetes (Planned)
+### Deploy to Kubernetes
 
 ```bash
-# Apply all manifests
-kubectl apply -f k8s/
+# Apply namespace
+kubectl apply -f k8s/namespace.yaml
+
+# Apply ConfigMap
+kubectl apply -f k8s/configmap.yaml
+
+# Update Secret with actual password
+kubectl apply -f k8s/secret.yaml
+
+# Deploy services
+kubectl apply -f k8s/flight-service-deployment.yaml
+kubectl apply -f k8s/flight-service-service.yaml
+kubectl apply -f k8s/crew-service-deployment.yaml
+kubectl apply -f k8s/crew-service-service.yaml
+kubectl apply -f k8s/operations-service-deployment.yaml
+kubectl apply -f k8s/operations-service-service.yaml
+kubectl apply -f k8s/api-gateway-deployment.yaml
+kubectl apply -f k8s/api-gateway-service.yaml
 
 # Check deployment status
-kubectl get deployments
-kubectl get pods
-kubectl get services
+kubectl get deployments -n airline-operations
+kubectl get pods -n airline-operations
+kubectl get services -n airline-operations
 
 # View logs
-kubectl logs -f deployment/flight-service
+kubectl logs -f deployment/flight-service -n airline-operations
 ```
 
 ### Kubernetes Resources
 
 #### Deployment
-- Replicas: 3
-- Resource requests: 512Mi CPU, 1Gi memory
-- Resource limits: 1Gi CPU, 2Gi memory
+- Replicas: 1 (adjust based on requirements)
+- Resource requests: 256Mi-512Mi CPU, 250m-500m memory
+- Resource limits: 512Mi-1Gi CPU, 500m-1000m memory
 - Liveness probe: `/actuator/health`
-- Readiness probe: `/actuator/readiness`
+- Readiness probe: `/actuator/health`
 
 #### Service
-- Type: ClusterIP
-- Port: 8080
-- Target port: 8081 (service-specific)
+- Type: ClusterIP (internal), LoadBalancer (gateway)
+- Ports: 8080-8083
 
 #### ConfigMap
 - Application configuration
@@ -190,9 +218,8 @@ kubectl logs -f deployment/flight-service
 - Service URLs
 
 #### Secret
-- Database passwords
-- API keys (if needed)
-- Never commit secrets to Git
+- Database passwords (placeholder in manifests)
+- Never commit real secrets to Git
 
 ## OpenShift Deployment
 
@@ -257,18 +284,17 @@ spec:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| SPRING_DATASOURCE_URL | Database JDBC URL | jdbc:postgresql://postgres:5432/flight_db |
-| SPRING_DATASOURCE_USERNAME | Database username | airline_user |
-| SPRING_DATASOURCE_PASSWORD | Database password | ${DB_PASSWORD} |
-| SPRING_PROFILES_ACTIVE | Active profile | prod |
+| DB_URL | Database JDBC URL | jdbc:postgresql://localhost:5432/flight_db |
+| DB_USERNAME | Database username | airline_user |
+| DB_PASSWORD | Database password | (must be set for PostgreSQL) |
 
 ### Optional Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| SERVER_PORT | Server port | 8081 |
-| LOGGING_LEVEL_ROOT | Log level | INFO |
-| FLYWAY_ENABLED | Enable migrations | true |
+| FLIGHT_SERVICE_URL | Flight service URL (gateway) | http://localhost:8081 |
+| CREW_SERVICE_URL | Crew service URL (gateway) | http://localhost:8082 |
+| OPERATIONS_SERVICE_URL | Operations service URL (gateway) | http://localhost:8083 |
 
 ## Health Checks
 

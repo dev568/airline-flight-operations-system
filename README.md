@@ -1,33 +1,23 @@
 # Airline Flight Operations Management System
 
-A professional, production-oriented backend system for managing airline flight operations, demonstrating modern Java enterprise development practices.
+A backend system for managing airline flight operations, demonstrating modern Java enterprise development practices.
 
-## Purpose
+## Business Purpose
 
-This project demonstrates practical experience in:
-- Java 21
-- Spring Boot 3.x
-- Spring Data JPA
-- Hibernate
-- REST API development
-- Microservices architecture
-- PostgreSQL
-- Apache Camel
-- Enterprise Integration Patterns
-- Docker
-- Kubernetes
-- OpenShift concepts
-- Testcontainers
-- Integration testing
+This system provides APIs for managing:
+- Flight schedules and status
+- Crew member information
+- Flight operation lifecycle with status transition validation
+- Operational events and workflows
 
 ## Architecture
 
-The system follows a clean microservices-oriented architecture with four services:
+The system follows a microservices-oriented architecture with four services:
 
-- **api-gateway** - Single entry point for clients, routes requests to backend services
-- **flight-service** - Airport and flight management
-- **crew-service** - Crew member management and assignments
-- **operations-service** - Operational events and integration workflows
+- **api-gateway** (port 8080) - Single entry point for clients, routes requests to backend services
+- **flight-service** (port 8081) - Flight and airport management
+- **crew-service** (port 8082) - Crew member management
+- **operations-service** (port 8083) - Flight operation lifecycle with status transition validation
 
 Each service owns its data and communicates via REST APIs.
 
@@ -36,47 +26,91 @@ Each service owns its data and communicates via REST APIs.
 - **Java 21**
 - **Spring Boot 3.3.5**
 - **Spring Cloud 2023.0.3**
-- **Spring Data JPA**
-- **PostgreSQL**
+- **Spring Data JPA** with Hibernate
+- **PostgreSQL 16**
+- **Flyway 9.22.3** for database migrations
 - **Apache Camel 4.4.0**
-- **Enterprise Integration Patterns**
-- **Docker**
-- **Kubernetes**
-- **OpenShift concepts**
-- **Testcontainers**
-- **Integration testing**
+- **H2** for testing
+- **SpringDoc OpenAPI** for API documentation
+- **Docker** for containerization
+- **Kubernetes** manifests for deployment
 
 ## Prerequisites
 
 - **Java 21** (required)
 - **Maven 3.9+** (or use Maven Wrapper)
-- **Docker 20+** (for local development and Testcontainers)
-- **PostgreSQL 14+** (or use Docker Compose)
+- **Docker** (optional, for container builds)
+- **PostgreSQL** (optional, for integration testing)
 
 ## Quick Start
 
-### Using Maven Wrapper
+### Build and Test
 
 ```bash
 # Build the entire project
-./mvnw clean install
+mvn clean package
 
-# Run a specific service
-./mvnw spring-boot:run -pl flight-service
+# Run all tests
+mvn clean test
+
+# Run tests for a specific module
+mvn test -pl flight-service
 ```
 
-### Using Docker Compose
+### Run Services Locally
 
 ```bash
-# Start PostgreSQL and all services
+# Run a specific service
+mvn spring-boot:run -pl flight-service
+
+# Run API Gateway
+mvn spring-boot:run -pl api-gateway
+```
+
+## Docker
+
+### Build Images
+
+```bash
+# Build all images from repository root
+docker build -t airline-api-gateway -f api-gateway/Dockerfile .
+docker build -t airline-flight-service -f flight-service/Dockerfile .
+docker build -t airline-crew-service -f crew-service/Dockerfile .
+docker build -t airline-operations-service -f operations-service/Dockerfile .
+```
+
+### Docker Compose
+
+The current Docker Compose configuration defines PostgreSQL only:
+
+```bash
+# Start PostgreSQL with required DB_PASSWORD environment variable
+export DB_PASSWORD=your_password
 docker-compose up -d
 
-# View logs
-docker-compose logs -f
-
-# Stop services
+# Stop PostgreSQL
 docker-compose down
 ```
+
+The docker-compose.yml creates three logical databases:
+- `flight_db`
+- `crew_db`
+- `operations_db`
+
+Application containers are not currently defined in docker-compose.yml. Services can be run individually using Docker images or Maven.
+
+## Environment Variables
+
+All services support the following environment variables:
+
+- `DB_URL` - Database connection URL (default: jdbc:postgresql://localhost:5432/<service_db>)
+- `DB_USERNAME` - Database username (default: airline_user)
+- `DB_PASSWORD` - Database password (default: empty, must be set for PostgreSQL)
+
+The API Gateway also supports:
+- `FLIGHT_SERVICE_URL` - Flight service URL (default: http://localhost:8081)
+- `CREW_SERVICE_URL` - Crew service URL (default: http://localhost:8082)
+- `OPERATIONS_SERVICE_URL` - Operations service URL (default: http://localhost:8083)
 
 ## Project Structure
 
@@ -85,32 +119,79 @@ airline-flight-operations-system/
 ├── api-gateway/          # API Gateway service
 ├── flight-service/       # Flight and airport management
 ├── crew-service/         # Crew management
-├── operations-service/   # Operational events and Camel integration
+├── operations-service/   # Flight operation lifecycle
 ├── docs/                 # Documentation
-└── k8s/                  # Kubernetes manifests
+├── k8s/                  # Kubernetes manifests
+├── docker-compose.yml    # PostgreSQL configuration
+└── init-db.sql          # Database initialization
 ```
 
-## Documentation
+## API Endpoints
 
-- [Requirements](docs/requirements.md)
-- [Architecture](docs/architecture.md)
-- [Database Design](docs/database-design.md)
-- [API Design](docs/api-design.md)
-- [Testing Strategy](docs/testing-strategy.md)
-- [Deployment](docs/deployment.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Security](docs/security.md)
-- [Sequence Diagrams](docs/sequence-diagrams.md)
+### API Gateway
+- `GET /api/v1/flights/**` → Flight Service
+- `GET /api/v1/crew-members/**` → Crew Service
+- `GET /api/v1/flight-operations/**` → Operations Service
 
-## Running Tests
+### Flight Service
+- `POST /api/v1/flights` - Create flight
+- `GET /api/v1/flights` - List all flights
+- `GET /api/v1/flights/{id}` - Get flight by ID
+- `PUT /api/v1/flights/{id}` - Update flight
+- `DELETE /api/v1/flights/{id}` - Delete flight
+- `GET /api/v1/flights/search` - Search flights
 
-```bash
-# Run all tests
-./mvnw test
+### Crew Service
+- `POST /api/v1/crew-members` - Create crew member
+- `GET /api/v1/crew-members` - List all crew members
+- `GET /api/v1/crew-members/{id}` - Get crew member by ID
+- `PUT /api/v1/crew-members/{id}` - Update crew member
+- `DELETE /api/v1/crew-members/{id}` - Delete crew member
+- `GET /api/v1/crew-members/search` - Search crew members
 
-# Run tests for a specific module
-./mvnw test -pl flight-service
-```
+### Operations Service
+- `POST /api/v1/flight-operations` - Create flight operation
+- `GET /api/v1/flight-operations` - List all operations
+- `GET /api/v1/flight-operations/{id}` - Get operation by ID
+- `PUT /api/v1/flight-operations/{id}` - Update operation (with status transition validation)
+- `DELETE /api/v1/flight-operations/{id}` - Delete operation
+- `GET /api/v1/flight-operations/search` - Search operations
+
+## Flight Operation Status Transitions
+
+The operations service enforces valid status transitions:
+
+- **PLANNED** → CHECK_IN_OPEN, DELAYED, CANCELLED
+- **CHECK_IN_OPEN** → BOARDING, DELAYED, CANCELLED
+- **BOARDING** → DEPARTED, DELAYED, CANCELLED
+- **DEPARTED** → ARRIVED, DELAYED
+- **ARRIVED** → COMPLETED
+- **DELAYED** → Any operational state, CANCELLED
+- **CANCELLED** → Terminal state
+- **COMPLETED** → Terminal state
+
+Invalid transitions return HTTP 400 with a descriptive error message.
+
+## Health Endpoints
+
+Spring Boot Actuator health endpoints are available on all services:
+
+- API Gateway: `http://localhost:8080/actuator/health`
+- Flight Service: `http://localhost:8081/actuator/health`
+- Crew Service: `http://localhost:8082/actuator/health`
+- Operations Service: `http://localhost:8083/actuator/health`
+
+## Correlation ID Handling
+
+The API Gateway generates a correlation ID for each request and propagates it to backend services via the `X-Correlation-ID` header. This ID is included in error responses for tracing.
+
+## Validation and Error Handling
+
+- Bean validation on all request DTOs
+- Cross-field validation (e.g., arrival time must be after departure time)
+- Centralized global exception handling
+- Correlation ID inclusion in error responses
+- Safe error messages (no stack traces exposed)
 
 ## API Documentation
 
@@ -121,78 +202,62 @@ Each service exposes OpenAPI/Swagger documentation:
 - Crew Service: http://localhost:8082/swagger-ui.html
 - Operations Service: http://localhost:8083/swagger-ui.html
 
-## Health Checks
+## Kubernetes Deployment
 
-Spring Boot Actuator endpoints are available:
+Kubernetes manifests are available in the `k8s/` directory:
 
-- `/actuator/health` - Health status
-- `/actuator/readiness` - Readiness probe
-- `/actuator/liveness` - Liveness probe
+- namespace.yaml - Kubernetes namespace
+- configmap.yaml - Configuration for database URLs and service routing
+- secret.yaml - Secret for database password (placeholder)
+- api-gateway-deployment.yaml + service.yaml
+- flight-service-deployment.yaml + service.yaml
+- crew-service-deployment.yaml + service.yaml
+- operations-service-deployment.yaml + service.yaml
 
-## Development
+**Note:** These manifests have not been tested against a real Kubernetes cluster. See `k8s/README.md` for deployment instructions.
 
-### Database Setup
+## Documentation
 
-The project uses Docker Compose for local development with a single PostgreSQL container containing three logical databases:
-- `flight_db`
-- `crew_db`
-- `operations_db`
+- [Architecture](docs/architecture.md)
+- [Deployment](docs/deployment.md)
 
-### Configuration
+## Test Status
 
-Environment-specific configuration is managed through Spring profiles:
-- `application.yml` - Default configuration
-- `application-dev.yml` - Development overrides
-- `application-test.yml` - Test configuration
+- **Total tests:** 116
+- **API Gateway:** 6 tests
+- **Flight Service:** 28 tests
+- **Crew Service:** 39 tests
+- **Operations Service:** 43 tests
+- **All tests passing:** ✅
 
-### Code Style
+## Current Validation Status
 
-- Clean code principles
-- Small, focused methods
-- Meaningful class and variable names
-- DTOs for API layer (no entity exposure)
-- Centralized exception handling
-- Bean validation for requests
+**Completed:**
+- ✅ Maven multi-module build
+- ✅ All unit tests passing (116 tests)
+- ✅ Executable JARs generated for all services
+- ✅ Docker images built successfully
+- ✅ Docker Compose PostgreSQL configuration validated
+- ✅ Flyway migrations configured
+- ✅ Environment variable support for database configuration
+- ✅ Flight operation status transition validation
+- ✅ Kubernetes manifests created
+- ✅ Health endpoints configured
+- ✅ Correlation ID handling
 
-## Security Considerations
+**Not Validated:**
+- ❌ Kubernetes cluster deployment (manifests created but not tested)
+- ❌ Full integration testing with PostgreSQL
+- ❌ End-to-end API testing through gateway
 
-This project implements security-aware practices:
-- Input validation
-- Safe error responses (no stack traces)
-- No secrets in Git
-- Environment-based configuration
-- Audit logging
-- Correlation IDs
-- Health and readiness checks
-
-Authentication and authorization are deferred to a later milestone.
+**Current Limitations:**
+- Docker Compose defines PostgreSQL only (application containers not included)
+- Kubernetes manifests have not been tested against a real cluster
+- No authentication or authorization
+- No crew assignment scheduling
+- No passenger booking functionality
+- Not production ready
 
 ## License
 
 This is a demonstration project for portfolio and interview purposes.
-
-## Status
-
-**Current Milestone:** 6 - Configuration and Documentation
-
-**Completed Services:**
-- ✅ Flight Service (port 8081)
-- ✅ Crew Service (port 8082)
-- ✅ Operations Service (port 8083)
-- ✅ API Gateway (port 8080)
-
-**Test Status:**
-- Total tests: 110
-- All tests passing: ✅
-- Verified locally: ✅
-
-**Current Limitations:**
-- Docker/PostgreSQL not available in local environment
-- Docker Compose has not been executed because Docker is unavailable
-- Current Docker Compose defines PostgreSQL only
-- Application containers are not currently defined in docker-compose.yml
-- Kubernetes deployment manifests pending
-- Integration tests pending
-- Not production ready
-
-See [docs/architecture.md](docs/architecture.md) for implementation roadmap.

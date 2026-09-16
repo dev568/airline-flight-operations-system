@@ -2,14 +2,22 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
+COPY api-gateway/pom.xml ./api-gateway/
+COPY flight-service/pom.xml ./flight-service/
+COPY crew-service/pom.xml ./crew-service/
+COPY operations-service/pom.xml ./operations-service/
+COPY api-gateway/src ./api-gateway/src
+COPY flight-service/src ./flight-service/src
+COPY crew-service/src ./crew-service/src
+COPY operations-service/src ./operations-service/src
+RUN mvn clean package -DskipTests -pl crew-service
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+RUN apk add --no-cache curl
+COPY --from=build /app/crew-service/target/crew-service-1.0.0-SNAPSHOT.jar app.jar
 EXPOSE 8082
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1
+  CMD curl -f http://localhost:8082/actuator/health || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]

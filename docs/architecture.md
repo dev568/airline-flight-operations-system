@@ -53,11 +53,10 @@ The system follows a microservices-oriented architecture with four services:
 - Crew data ownership
 
 ### Operations Service
-- Flight operational events
-- Delay event processing
-- Cancellation event processing
-- Status transition workflows
-- Audit event creation
+- Flight operation lifecycle management
+- Status transition validation (PLANNED → CHECK_IN_OPEN → BOARDING → DEPARTED → ARRIVED → COMPLETED)
+- Delay and cancellation handling
+- Operation search and filtering
 - Operational event processing
 - Integration workflows using Apache Camel
 
@@ -176,8 +175,8 @@ The operations service uses Enterprise Integration Patterns:
 5. ✅ Operations service
 6. ✅ API Gateway
 7. ✅ Configuration and documentation
-8. ⏳ Docker validation (pending Docker availability)
-9. ⏳ Kubernetes/OpenShift manifests (pending)
+8. ✅ Docker validation (images built successfully)
+9. ✅ Kubernetes manifests (created but not tested)
 10. ⏳ Integration tests (pending)
 11. ⏳ Observability and reliability
 12. ⏳ CI/CD and security readiness

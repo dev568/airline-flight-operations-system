@@ -5,8 +5,10 @@ import com.airline.operations.dto.FlightOperationResponse;
 import com.airline.operations.dto.UpdateFlightOperationRequest;
 import com.airline.operations.entity.FlightOperation;
 import com.airline.operations.exception.FlightOperationNotFoundException;
+import com.airline.operations.exception.InvalidStatusTransitionException;
 import com.airline.operations.model.OperationStatus;
 import com.airline.operations.repository.FlightOperationRepository;
+import com.airline.operations.validation.StatusTransitionValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,7 +89,12 @@ public class FlightOperationService {
                 .orElseThrow(() -> new FlightOperationNotFoundException(id));
 
         if (request.status() != null) {
-            flightOperation.setStatus(request.status());
+            OperationStatus currentStatus = flightOperation.getStatus();
+            OperationStatus newStatus = request.status();
+
+            StatusTransitionValidator.validateTransition(currentStatus, newStatus);
+
+            flightOperation.setStatus(newStatus);
         }
         if (request.scheduledAt() != null) {
             flightOperation.setScheduledAt(request.scheduledAt());
