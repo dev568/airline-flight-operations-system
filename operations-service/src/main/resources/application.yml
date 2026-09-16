@@ -5,9 +5,9 @@ spring:
   application:
     name: operations-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/operations_db
-    username: airline_user
-    password: airline_password
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/operations_db}
+    username: ${DB_USERNAME:airline_user}
+    password: ${DB_PASSWORD:airline_password}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
