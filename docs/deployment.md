@@ -63,7 +63,14 @@ spring:
 
 ## Docker Deployment
 
-### Build Images
+**Current Status:**
+- Docker/PostgreSQL not available in local environment
+- Docker Compose has not been executed because Docker is unavailable
+- Current Docker Compose defines PostgreSQL only
+- Application containers are not currently defined in docker-compose.yml
+- Dockerfiles, if present, have not been container-tested locally
+
+### Build Images (Planned)
 
 ```bash
 # Build all images
@@ -73,11 +80,11 @@ docker-compose build
 docker build -t airline/flight-service:latest flight-service/
 ```
 
-### Run with Docker Compose
+### Run with Docker Compose (Planned)
 
 ```bash
-# Start all services
-docker-compose up -d
+# Start PostgreSQL only
+docker-compose up -d postgres
 
 # View logs
 docker-compose logs -f
@@ -107,9 +114,11 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8081
 HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:8081/actuator/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
+
+**Note:** Dockerfiles exist for all services but have not been container-tested locally due to Docker unavailability. The healthcheck command uses wget, which may not be available in Alpine images and may need adjustment.
 
 ## Kubernetes Deployment
 
@@ -118,8 +127,20 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 - Kubernetes cluster (minikube, kind, or cloud)
 - kubectl configured
 - Container registry access
+- Docker available for image building
 
-### Build and Push Images
+### Current Status
+
+**Note:** Kubernetes deployment manifests are currently pending. The k8s/ directory does not exist yet. This section documents the planned approach.
+
+**Docker Compose Limitations:**
+- Docker/PostgreSQL not available in local environment
+- Docker Compose has not been executed because Docker is unavailable
+- Current Docker Compose defines PostgreSQL only
+- Application containers are not currently defined in docker-compose.yml
+- Dockerfiles, if present, have not been container-tested locally
+
+### Build and Push Images (Planned)
 
 ```bash
 # Build images
@@ -132,7 +153,9 @@ docker tag airline/flight-service:latest registry.example.com/airline/flight-ser
 docker push registry.example.com/airline/flight-service:1.0.0
 ```
 
-### Deploy to Kubernetes
+**Note:** The above commands require Docker to be available. Dockerfiles exist for all services but have not been tested due to Docker unavailability in the local environment.
+
+### Deploy to Kubernetes (Planned)
 
 ```bash
 # Apply all manifests

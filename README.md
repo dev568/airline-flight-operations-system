@@ -173,6 +173,26 @@ This is a demonstration project for portfolio and interview purposes.
 
 ## Status
 
-**Current Milestone:** 1 - Repository Foundation
+**Current Milestone:** 6 - Configuration and Documentation
+
+**Completed Services:**
+- ✅ Flight Service (port 8081)
+- ✅ Crew Service (port 8082)
+- ✅ Operations Service (port 8083)
+- ✅ API Gateway (port 8080)
+
+**Test Status:**
+- Total tests: 110
+- All tests passing: ✅
+- Verified locally: ✅
+
+**Current Limitations:**
+- Docker/PostgreSQL not available in local environment
+- Docker Compose has not been executed because Docker is unavailable
+- Current Docker Compose defines PostgreSQL only
+- Application containers are not currently defined in docker-compose.yml
+- Kubernetes deployment manifests pending
+- Integration tests pending
+- Not production ready
 
 See [docs/architecture.md](docs/architecture.md) for implementation roadmap.
